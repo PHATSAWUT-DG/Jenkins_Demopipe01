@@ -43,30 +43,18 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                echo "Creating temporary volume and copying files..."
-                
-                # Create a named volume
-                docker volume create temp_workspace
-                
-                # Copy files to volume using a container
+                echo "Running tests inside Docker container..."
+
                 docker run --rm \
-                -v "$WORKSPACE:/host_workspace" \
-                -v temp_workspace:/container_workspace \
-                alpine:latest \
-                sh -c "cp -r /host_workspace/. /container_workspace/"
-                
-                # Now use the volume
-                docker run --rm \
-                -v temp_workspace:/app_code \
-                -w /app_code \
+                -v "$WORKSPACE:/workspace" \
+                -w /workspace \
                 python:3.11 \
                 bash -c "
                     set -e
-                    echo '=== Contents of /app_code in container ==='
-                    ls -la /app_code
-                    echo '=== END DEBUG ==='
+                    echo '=== CONTENTS IN CONTAINER ==='
+                    ls -la /workspace
                     
-                    if [ ! -f /app_code/requirements.txt ]; then
+                    if [ ! -f /workspace/requirements.txt ]; then
                         echo 'ERROR: requirements.txt NOT FOUND!'
                         exit 1
                     fi
@@ -78,9 +66,6 @@ pipeline {
                     pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                     echo 'Tests completed successfully.'
                 "
-                
-                # Cleanup
-                docker volume rm temp_workspace
                 '''
             }
         }
