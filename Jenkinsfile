@@ -55,7 +55,11 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube Scanner') {
-                    sh '/var/jenkins_home/workspace/FastAPI-Pipeline/sonar-scanner/bin/sonar-scanner'
+                    sh '''
+                    echo "DEBUG: SONAR_TOKEN is set to a non-empty value: ${SONAR_TOKEN:+YES}"
+                    # echo "DEBUG ONLY - DO NOT COMMIT: Token value is $SONAR_TOKEN" # NEVER LOG TOKENS!
+                    /var/jenkins_home/workspace/FastAPI-Pipeline/sonar-scanner/bin/sonar-scanner
+                    '''
                 }
             }
         }
