@@ -34,6 +34,14 @@ pipeline {
             }
         }
         stage('SonarQube Analysis') {
+          stage('Install SonarQube Scanner') {
+            steps {
+                sh '''
+                apt-get update && apt-get install -y npm
+                npm install -g sonar-scanner
+                '''
+            }
+        }          
             steps {
                 withSonarQubeEnv('SonarQube Scanner') {
                     sh 'sonar-scanner'
