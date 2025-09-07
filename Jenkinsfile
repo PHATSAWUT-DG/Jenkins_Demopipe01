@@ -40,7 +40,7 @@ pipeline {
                 echo "Downloading SonarScanner..."
                 curl -sSL -o sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.2.0.5079-linux-x64.zip?_gl=1*j7wxsl*_gcl_au*NDY1NzU2ODYzLjE3NTcyNzQ2MjA.*_ga*MjIyNzYzMTkuMTc1NzI3NDYxOQ..*_ga_9JZ0GZ5TC6*czE3NTcyNzQ2MTgkbzEkZzEkdDE3NTcyNzQ3MjkkajYwJGwwJGgw
                 unzip -q sonar-scanner.zip
-                mv sonar-scanner-7.2.0.5079-linux sonar-scanner
+                mv sonar-scanner-cli-7.2.0.5079-linux-x64 sonar-scanner
                 export PATH=$PATH:/var/jenkins_home/workspace/FastAPI-Pipeline/sonar-scanner/bin
                 echo "SonarScanner installed."
                 '''
