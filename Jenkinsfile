@@ -14,14 +14,6 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
             }
         }
-        stage('Install SonarQube Scanner') {
-            steps {
-                sh '''
-                apt-get update && apt-get install -y npm
-                npm install -g sonar-scanner
-                '''
-            }
-        }
         stage('Setup venv') {
             steps {
                 sh '''
@@ -41,9 +33,23 @@ pipeline {
                 '''
             }
         }
+        // ============ NEW STAGE ============
+        stage('Install SonarScanner') {
+            steps {
+                sh '''
+                echo "Downloading SonarScanner..."
+                curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.2.0.5079-linux.zip
+                unzip -q sonar-scanner.zip
+                mv sonar-scanner-7.2.0.5079-linux sonar-scanner
+                export PATH=$PATH:/var/jenkins_home/workspace/FastAPI-Pipeline/sonar-scanner/bin
+                echo "SonarScanner installed."
+                '''
+            }
+        }
+        // ===================================
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube Scanner') {
+                withSonarQubeEnv('SonarQube') {
                     sh 'sonar-scanner'
                 }
             }
