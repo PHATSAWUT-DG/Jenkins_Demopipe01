@@ -77,11 +77,15 @@ pipeline {
                 python:3.11 \
                 bash -c "
                     set -e
-                    echo 'Installing dependencies inside container...'
-                    pip install --no-cache-dir -r requirements.txt
-                    echo 'Running tests...'
-                    export PYTHONPATH=.
-                    pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
+                    # Change ownership inside container so user 1000 can access files
+                    chown -R 1000:1000 /workspace
+                    # Now switch to user 1000 and install/run
+                    su -c '
+                        cd /workspace
+                        pip install --user --no-cache-dir -r requirements.txt
+                        export PYTHONPATH=.
+                        pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
+                    ' - 1000
                     echo 'Tests completed.'
                 "
                 '''
