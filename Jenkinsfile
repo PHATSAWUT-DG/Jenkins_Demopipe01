@@ -6,7 +6,7 @@ pipeline {
         }
     }
     environment {
-        SONARQUBE = credentials('sqp_0bc64b5652ea024ceaa66a66fc5abfc5669417b8')
+        SONARQUBE = credentials('sonarqube_token')
     }
     stages {
         stage('Checkout') {
