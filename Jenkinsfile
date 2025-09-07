@@ -78,11 +78,9 @@ pipeline {
                 python:3.11 \
                 bash -c "
                     set -e
+                    echo 'Installing dependencies inside container...'
+                    pip install --no-cache-dir -r requirements.txt
                     echo 'Running tests...'
-                    # Explicitly add the venv bin directory to PATH
-                    export PATH=\$PATH:\$PWD/venv/bin
-                    # Activate the venv (this is redundant now but safe)
-                    source venv/bin/activate
                     export PYTHONPATH=.
                     pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                     echo 'Tests completed.'
