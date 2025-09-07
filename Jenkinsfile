@@ -11,26 +11,13 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
-                
-                // Debug: Verify files after checkout
-                sh '''
-                echo "=== FILES IN WORKSPACE AFTER CHECKOUT ==="
-                ls -la
-                echo "=== CHECKING FOR KEY FILES ==="
-                if [ ! -f requirements.txt ]; then
-                    echo "ERROR: requirements.txt NOT FOUND!"
-                    ls -la
-                    exit 1
-                else
-                    echo "SUCCESS: requirements.txt found"
-                fi
-                if [ ! -f app/main.py ]; then
-                    echo "WARNING: app/main.py not found"
-                else
-                    echo "SUCCESS: app/main.py found"
-                fi
-                '''
+            // Use the simpler `git` step which is more robust in Declarative pipelines
+            git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
+
+            sh '''
+            echo "=== FILES AFTER CHECKOUT ==="
+            ls -la
+            '''
             }
         }
 
