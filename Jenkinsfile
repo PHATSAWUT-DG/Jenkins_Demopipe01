@@ -32,7 +32,7 @@ pipeline {
                 docker run --rm \
                   -v "$WORKSPACE:/workspace" \
                   -w /workspace \
-                  alpine:latest \  # Use a minimal image for testing
+                  alpine:latest \
                   ls -la
                 echo "=== END STEP 1 ==="
                 '''
