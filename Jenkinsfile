@@ -1,62 +1,84 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    // Run the pipeline steps directly on the Jenkins agent node (must have Docker installed)
+    agent any
 
     stages {
         stage('Checkout') {
             steps {
+                // This will run directly on the Jenkins agent node
                 git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
             }
         }
-        stage('Setup venv') {
+
+        stage('Setup venv & Install Dependencies') {
             steps {
+                // Run Python setup inside a python:3.11 container
+                // Mount the workspace directory to share files
+                // Set the working directory inside the container to /workspace
                 sh '''
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
+                docker run --rm \
+                  -v "$WORKSPACE:/workspace" \
+                  -w /workspace \
+                  python:3.11 \
+                  bash -c "
+                    set -e
+                    echo 'Setting up virtual environment and installing dependencies...'
+                    python3 -m venv venv
+                    source venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    echo 'Setup complete.'
+                  "
                 '''
             }
         }
+
         stage('Run Tests & Coverage') {
             steps {
+                // Run tests inside a python:3.11 container, reusing the installed dependencies
                 sh '''
-                . venv/bin/activate
-                export PYTHONPATH=.
-                pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
+                docker run --rm \
+                  -v "$WORKSPACE:/workspace" \
+                  -w /workspace \
+                  python:3.11 \
+                  bash -c "
+                    set -e
+                    echo 'Running tests...'
+                    source venv/bin/activate
+                    export PYTHONPATH=.
+                    pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
+                    echo 'Tests completed.'
+                  "
                 '''
             }
         }
-        // ============ NEW STAGE ============
+
+        // ============ SONARSCANNER INSTALL STAGE ============
+        // You might want to install SonarScanner on the Jenkins agent node itself
+        // or download it fresh each time. Installing on the agent is more efficient.
         stage('Install SonarScanner') {
             steps {
+                // This runs on the Jenkins agent node
                 sh '''
-                echo "Cleaning up previous files..."
+                echo "Cleaning up previous SonarScanner files..."
                 rm -f sonar-scanner.zip
-                rm -rf sonar-scanner sonar-scanner-cli-7.2.0.5079-linux-x64        
+                rm -rf sonar-scanner sonar-scanner-cli-7.2.0.5079-linux-x64
 
                 echo "Downloading SonarScanner..."
-                curl -sSL -o sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.2.0.5079-linux-x64.zip?_gl=1*j7wxsl*_gcl_au*NDY1NzU2ODYzLjE3NTcyNzQ2MjA.*_ga*MjIyNzYzMTkuMTc1NzI3NDYxOQ..*_ga_9JZ0GZ5TC6*czE3NTcyNzQ2MTgkbzEkZzEkdDE3NTcyNzQ3MjkkajYwJGwwJGgw
+                curl -sSL -o sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.2.0.5079-linux-x64.zip
                 unzip -q -o sonar-scanner.zip
-                ls -la
                 mv sonar-scanner-7.2.0.5079-linux-x64 sonar-scanner
-               # Adding to PATH here is fine for this step, but won't persist to the next stage.
-                export PATH=$PATH:$WORKSPACE/sonar-scanner/bin
-                echo "SonarScanner installed."
+                echo "SonarScanner installed on Jenkins agent."
                 '''
             }
         }
         // ===================================
+
         stage('SonarQube Analysis') {
             steps {
-                // Use withSonarQubeEnv primarily to get the SONAR_HOST_URL based on the server name 'SonarQube Scanner'
-                // configured in Jenkins (Manage Jenkins > Configure System).
+                // This runs on the Jenkins agent node, using the locally installed scanner
+                // The scanner will analyze the code in the $WORKSPACE directory
                 withSonarQubeEnv('SonarQube Scanner') { // Make sure this name matches your Jenkins config
-                    // Explicitly bind the secret text credential to a variable
                     withCredentials([string(credentialsId: 'sonarqube_token', variable: 'SCANNER_TOKEN')]) {
                         sh '''
                         # Debug: Confirm SCANNER_TOKEN is set from withCredentials
@@ -70,19 +92,16 @@ pipeline {
                         # Debug: Check if withSonarQubeEnv provided SONAR_HOST_URL
                         if [ -n "$SONAR_HOST_URL" ]; then
                             echo "INFO: SONAR_HOST_URL provided by withSonarQubeEnv: $SONAR_HOST_URL"
-                            # Pass the host URL to the scanner
                             SONAR_SCANNER_OPTS="-Dsonar.host.url=$SONAR_HOST_URL"
                         else
                             echo "WARNING: SONAR_HOST_URL not provided by withSonarQubeEnv. Using default or sonar-project.properties."
                             SONAR_SCANNER_OPTS=""
                         fi
 
-                        # Ensure sonar-scanner is in PATH
+                        # Ensure sonar-scanner is in PATH (adjust path if needed)
                         export PATH=$PATH:$WORKSPACE/sonar-scanner/bin
 
-                        # Run the scanner, explicitly passing the token and potentially the host URL
-                        # The token is passed via the SONAR_TOKEN environment variable, which the scanner recognizes.
-                        # SONAR_TOKEN takes precedence over sonar.login property file.
+                        # Run the scanner, explicitly passing the token
                         export SONAR_TOKEN="$SCANNER_TOKEN"
                         sonar-scanner $SONAR_SCANNER_OPTS
                         '''
@@ -90,33 +109,17 @@ pipeline {
                 }
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                // --- NEW: Install Docker CLI inside the python container ---
-                sh '''
-                echo "Installing Docker CLI..."
-                # Update package list
-                apt-get update
-                # Install prerequisites for https repositories
-                apt-get install -y ca-certificates curl gnupg lsb-release
-                # Add Docker's official GPG key
-                mkdir -p /etc/apt/keyrings
-                curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-                # Set up the repository
-                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-                # Update package list again
-                apt-get update
-                # Install Docker CLI (docker-ce-cli)
-                apt-get install -y docker-ce-cli
-                echo "Docker CLI installation complete."
-                docker --version # Verify installation
-                '''
-                // --- END OF NEW INSTALLATION STEPS ---
+                // This runs directly on the Jenkins agent node, where Docker CLI should be available
                 sh 'docker build -t fastapi-app:latest .'
             }
         }
+
         stage('Deploy Container') {
             steps {
+                 // This also runs directly on the Jenkins agent node
                 sh '''
                 docker stop fastapi_app || true
                 docker rm fastapi_app || true
@@ -128,6 +131,8 @@ pipeline {
     post {
         always {
             echo "Pipeline finished"
+             // Optional: Cleanup downloaded scanner files
+            // sh 'rm -rf sonar-scanner sonar-scanner.zip || true'
         }
     }
 }
