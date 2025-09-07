@@ -43,15 +43,21 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                echo "Waiting for file sync..."
-                sleep 5  # Give time for file sync
+                echo "Creating temporary volume and copying files..."
                 
-                echo "=== DEBUGGING MOUNT ISSUE ==="
-                echo "Host workspace contents:"
-                ls -la "$WORKSPACE"
+                # Create a named volume
+                docker volume create temp_workspace
                 
+                # Copy files to volume using a container
                 docker run --rm \
-                -v "$WORKSPACE:/app_code:rw" \
+                -v "$WORKSPACE:/host_workspace" \
+                -v temp_workspace:/container_workspace \
+                alpine:latest \
+                sh -c "cp -r /host_workspace/. /container_workspace/"
+                
+                # Now use the volume
+                docker run --rm \
+                -v temp_workspace:/app_code \
                 -w /app_code \
                 python:3.11 \
                 bash -c "
@@ -62,7 +68,6 @@ pipeline {
                     
                     if [ ! -f /app_code/requirements.txt ]; then
                         echo 'ERROR: requirements.txt NOT FOUND!'
-                        find /app_code -name \\\"requirements.txt\\\" -type f || echo 'Not found anywhere'
                         exit 1
                     fi
                     
@@ -73,6 +78,9 @@ pipeline {
                     pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                     echo 'Tests completed successfully.'
                 "
+                
+                # Cleanup
+                docker volume rm temp_workspace
                 '''
             }
         }
