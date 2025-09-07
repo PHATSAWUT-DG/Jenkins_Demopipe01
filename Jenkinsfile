@@ -66,26 +66,27 @@ pipeline {
 
         stage('Run Tests & Coverage') {
             steps {
-                // Run tests inside a python:3.11 container, reusing the installed dependencies
-                // Also run as the jenkins user for consistency
                 sh '''
                 JENKINS_UID=$(id -u)
                 JENKINS_GID=$(id -g)
                 echo "Running Docker container for tests as UID: $JENKINS_UID, GID: $JENKINS_GID"
 
                 docker run --rm \
-                  --user "$JENKINS_UID:$JENKINS_GID" \
-                  -v "$WORKSPACE:/workspace" \
-                  -w /workspace \
-                  python:3.11 \
-                  bash -c "
+                --user "$JENKINS_UID:$JENKINS_GID" \
+                -v "$WORKSPACE:/workspace" \
+                -w /workspace \
+                python:3.11 \
+                bash -c "
                     set -e
                     echo 'Running tests...'
+                    # Explicitly add the venv bin directory to PATH
+                    export PATH=\$PATH:\$PWD/venv/bin
+                    # Activate the venv (this is redundant now but safe)
                     source venv/bin/activate
                     export PYTHONPATH=.
                     pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                     echo 'Tests completed.'
-                  "
+                "
                 '''
             }
         }
