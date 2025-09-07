@@ -1,72 +1,55 @@
 pipeline {
-    // Run the pipeline steps directly on the Jenkins agent node (must have Docker installed)
     agent any
 
     stages {
         stage('Clean Workspace') {
             steps {
                 cleanWs()
+                sh 'echo "Workspace cleaned"'
             }
         }
 
         stage('Checkout') {
             steps {
-                // This will run directly on the Jenkins agent node
                 git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
+                
+                // Debug: Verify files after checkout
+                sh '''
+                echo "=== FILES IN WORKSPACE AFTER CHECKOUT ==="
+                ls -la
+                echo "=== CHECKING FOR KEY FILES ==="
+                if [ ! -f requirements.txt ]; then
+                    echo "ERROR: requirements.txt NOT FOUND!"
+                    ls -la
+                    exit 1
+                else
+                    echo "SUCCESS: requirements.txt found"
+                fi
+                if [ ! -f app/main.py ]; then
+                    echo "WARNING: app/main.py not found"
+                else
+                    echo "SUCCESS: app/main.py found"
+                fi
+                '''
             }
         }
 
         stage('Setup venv & Install Dependencies') {
             steps {
-                // --- VERIFICATION STEP ON AGENT NODE ---
                 sh '''
                 echo "=== AGENT NODE VERIFICATION ==="
-                echo "Current user: $(id -u -n):$(id -g -n)"
-                echo "Current user ID: $(id -u):$(id -g)"
                 echo "Workspace path: $WORKSPACE"
-                echo "Contents of workspace BEFORE marker file:"
+                echo "Contents of workspace:"
                 ls -la "$WORKSPACE"
-
+                
                 if [ ! -f "$WORKSPACE/requirements.txt" ]; then
                   echo "ERROR: requirements.txt not found in workspace on agent!"
                   exit 1
                 else
                   echo "SUCCESS: Found requirements.txt on agent node."
                 fi
-
-                # Create a unique marker file to verify mounting
-                echo "This file was created on the host at $(date)" > "$WORKSPACE/DEBUG_HOST_MARKER.txt"
-                echo "Created DEBUG_HOST_MARKER.txt"
-                ls -la "$WORKSPACE/DEBUG_HOST_MARKER.txt"
                 echo "=== END AGENT NODE VERIFICATION ==="
                 '''
-                // --- END OF AGENT VERIFICATION ---
-
-                // --- STEP 1: Simple Docker Volume Mount Test with Alpine ---
-                sh '''
-                echo "=== STEP 1: Alpine Volume Mount Test ==="
-                echo "Running Alpine container to list mounted workspace contents:"
-                docker run --rm \
-                  -v "$WORKSPACE:/workspace" \
-                  -w /workspace \
-                  alpine:latest \
-                  sh -c "echo Contents of /workspace; ls -la; echo Contents of / including /workspace; ls -la /"
-                echo "=== END STEP 1 ==="
-                '''
-                // --- END OF ALPINE TEST ---
-
-                // --- STEP 2: Python Container Mount Test ---
-                sh '''
-                echo "=== STEP 2: Python Container Mount Test ==="
-                echo "Running Python container to list mounted workspace contents:"
-                docker run --rm \
-                  -v "$WORKSPACE:/workspace" \
-                  -w /workspace \
-                  python:3.11 \
-                  bash -c "echo Contents of /workspace; ls -la; echo Contents of / including /workspace; ls -la /"
-                echo "=== END STEP 2 ==="
-                '''
-                // --- END OF PYTHON TEST ---
             }
         }
 
@@ -81,6 +64,15 @@ pipeline {
                 python:3.11 \
                 bash -c "
                     set -e
+                    echo '=== DEBUG: Contents of /workspace in container ==='
+                    ls -la /workspace
+                    echo '=== END DEBUG ==='
+                    
+                    if [ ! -f /workspace/requirements.txt ]; then
+                        echo 'ERROR: requirements.txt NOT FOUND in container!'
+                        exit 1
+                    fi
+                    
                     echo 'Installing dependencies...'
                     pip install --no-cache-dir -r requirements.txt
                     echo 'Dependencies installed. Running tests...'
