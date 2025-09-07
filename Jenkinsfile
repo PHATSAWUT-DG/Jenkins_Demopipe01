@@ -14,94 +14,53 @@ pipeline {
             steps {
                 // --- VERIFICATION STEP ON AGENT NODE ---
                 sh '''
-                echo "Verifying files in workspace after checkout (on agent node):"
+                echo "=== AGENT NODE VERIFICATION ==="
+                echo "Current user: $(id -u -n):$(id -g -n)"
+                echo "Current user ID: $(id -u):$(id -g)"
+                echo "Workspace path: $WORKSPACE"
+                echo "Contents of workspace BEFORE marker file:"
                 ls -la "$WORKSPACE"
+
                 if [ ! -f "$WORKSPACE/requirements.txt" ]; then
                   echo "ERROR: requirements.txt not found in workspace on agent!"
                   exit 1
                 else
                   echo "SUCCESS: Found requirements.txt on agent node."
                 fi
+
+                # Create a unique marker file to verify mounting
+                echo "This file was created on the host at $(date)" > "$WORKSPACE/DEBUG_HOST_MARKER.txt"
+                echo "Created DEBUG_HOST_MARKER.txt"
+                ls -la "$WORKSPACE/DEBUG_HOST_MARKER.txt"
+                echo "=== END AGENT NODE VERIFICATION ==="
                 '''
                 // --- END OF AGENT VERIFICATION ---
 
-                // --- STEP 1: Simple Docker Volume Mount Test ---
+                // --- STEP 1: Simple Docker Volume Mount Test with Alpine ---
                 sh '''
-                echo "=== STEP 1: Testing Docker Volume Mount ==="
-                echo "Running simple 'ls -la' inside container to see mounted volume contents:"
+                echo "=== STEP 1: Alpine Volume Mount Test ==="
+                echo "Running Alpine container to list mounted workspace contents:"
                 docker run --rm \
                   -v "$WORKSPACE:/workspace" \
                   -w /workspace \
                   alpine:latest \
-                  ls -la
+                  sh -c "echo Contents of /workspace; ls -la; echo Contents of / including /workspace; ls -la /"
                 echo "=== END STEP 1 ==="
                 '''
-                // --- END OF TEST ---
+                // --- END OF ALPINE TEST ---
 
-                // --- STEP 2: Test with User ID (if previous step shows files) ---
+                // --- STEP 2: Python Container Mount Test ---
                 sh '''
-                echo "=== STEP 2: Testing Docker Volume Mount with Jenkins User ID ==="
-                JENKINS_UID=$(id -u)
-                JENKINS_GID=$(id -g)
-                echo "Running 'ls -la' inside container as UID: $JENKINS_UID, GID: $JENKINS_GID :"
+                echo "=== STEP 2: Python Container Mount Test ==="
+                echo "Running Python container to list mounted workspace contents:"
                 docker run --rm \
-                  --user "$JENKINS_UID:$JENKINS_GID" \
-                  -v "$WORKSPACE:/workspace" \
-                  -w /workspace \
-                  alpine:latest \
-                  ls -la
-                echo "=== END STEP 2 ==="
-                '''
-                // --- END OF TEST WITH USER ID ---
-
-                // --- STEP 3: Run Python Setup (only if previous steps show files) ---
-                sh '''
-                echo "=== STEP 3: Running Python Setup ==="
-                JENKINS_UID=$(id -u)
-                JENKINS_GID=$(id -g)
-                echo "Running Python setup as UID: $JENKINS_UID, GID: $JENKINS_GID"
-
-                docker run --rm \
-                  --user "$JENKINS_UID:$JENKINS_GID" \
                   -v "$WORKSPACE:/workspace" \
                   -w /workspace \
                   python:3.11 \
-                  bash -c "
-                    set -e
-                    echo 'Contents of /workspace inside python container:'
-                    ls -la
-                    echo '---'
-                    # Check if requirements.txt is actually there
-                    if [ ! -f requirements.txt ]; then
-                      echo 'CRITICAL ERROR: requirements.txt STILL not found inside python container!'
-                      echo 'Current directory is: \$(pwd)'
-                      echo 'WORKSPACE env var inside container: \$WORKSPACE' # Might be empty
-                      # List root and parent to see structure
-                      echo 'Contents of / :'
-                      ls -la /
-                      echo 'Contents of .. :'
-                      ls -la ..
-                      exit 1
-                    else
-                      echo 'SUCCESS: requirements.txt found inside python container.'
-                    fi
-
-                    echo 'Cleaning up any existing venv...'
-                    rm -rf venv || echo 'No existing venv to remove or permission issue removing it (will try creating anyway).'
-
-                    echo 'Creating virtual environment...'
-                    python3 -m venv venv
-
-                    echo 'Activating virtual environment...'
-                    source venv/bin/activate
-
-                    echo 'Installing dependencies from requirements.txt...'
-                    pip install -r requirements.txt
-
-                    echo 'Python setup complete.'
-                  "
+                  bash -c "echo Contents of /workspace; ls -la; echo Contents of / including /workspace; ls -la /"
+                echo "=== END STEP 2 ==="
                 '''
-                // --- END OF PYTHON SETUP ---
+                // --- END OF PYTHON TEST ---
             }
         }
 
