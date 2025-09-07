@@ -43,20 +43,26 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                echo "Running tests inside Docker container..."
-
+                echo "=== DEBUGGING MOUNT ISSUE ==="
+                echo "Host workspace contents:"
+                ls -la "$WORKSPACE"
+                
+                echo "Testing mount to /app_code instead of /workspace..."
+                
                 docker run --rm \
-                -v "$WORKSPACE:/workspace" \
-                -w /workspace \
+                -v "$WORKSPACE:/app_code:rw" \
+                -w /app_code \
                 python:3.11 \
                 bash -c "
                     set -e
-                    echo '=== DEBUG: Contents of /workspace in container ==='
-                    ls -la /workspace
+                    echo '=== Contents of /app_code in container ==='
+                    ls -la /app_code
                     echo '=== END DEBUG ==='
                     
-                    if [ ! -f /workspace/requirements.txt ]; then
-                        echo 'ERROR: requirements.txt NOT FOUND in container!'
+                    if [ ! -f /app_code/requirements.txt ]; then
+                        echo 'ERROR: requirements.txt NOT FOUND!'
+                        echo 'Searching for it...'
+                        find /app_code -name \"requirements.txt\" -type f || echo \"Not found anywhere\"
                         exit 1
                     fi
                     
