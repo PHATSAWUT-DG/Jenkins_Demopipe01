@@ -53,24 +53,40 @@ pipeline {
         // ===================================
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube Scanner') {
-                    sh '''
-                    # Debug: Check if SONAR_TOKEN is set by withSonarQubeEnv
-                    if [ -n "$SONAR_TOKEN" ]; then
-                        echo "SUCCESS: SONAR_TOKEN is set."
-                    else
-                        echo "ERROR: SONAR_TOKEN is NOT set. Check Jenkins SonarQube server configuration and credential association."
-                        exit 1
-                    fi
+                // Use withSonarQubeEnv primarily to get the SONAR_HOST_URL based on the server name 'SonarQube Scanner'
+                // configured in Jenkins (Manage Jenkins > Configure System).
+                withSonarQubeEnv('SonarQube Scanner') { // Make sure this name matches your Jenkins config
+                    // Explicitly bind the secret text credential to a variable
+                    withCredentials([string(credentialsId: 'sonarqube_token', variable: 'SCANNER_TOKEN')]) {
+                        sh '''
+                        # Debug: Confirm SCANNER_TOKEN is set from withCredentials
+                        if [ -n "$SCANNER_TOKEN" ]; then
+                            echo "SUCCESS: SCANNER_TOKEN (from withCredentials) is set."
+                        else
+                            echo "ERROR: SCANNER_TOKEN is NOT set. Check the credentialsId 'sonarqube_token'."
+                            exit 1
+                        fi
 
-                    # Ensure sonar-scanner is in PATH or use full path
-                    # Option 1: Re-add to PATH for this shell session
-                    export PATH=$PATH:$WORKSPACE/sonar-scanner/bin
-                    sonar-scanner
+                        # Debug: Check if withSonarQubeEnv provided SONAR_HOST_URL
+                        if [ -n "$SONAR_HOST_URL" ]; then
+                            echo "INFO: SONAR_HOST_URL provided by withSonarQubeEnv: $SONAR_HOST_URL"
+                            # Pass the host URL to the scanner
+                            SONAR_SCANNER_OPTS="-Dsonar.host.url=$SONAR_HOST_URL"
+                        else
+                            echo "WARNING: SONAR_HOST_URL not provided by withSonarQubeEnv. Using default or sonar-project.properties."
+                            SONAR_SCANNER_OPTS=""
+                        fi
 
-                    # Option 2: Use full path (alternative to modifying PATH)
-                    # $WORKSPACE/sonar-scanner/bin/sonar-scanner
-                    '''
+                        # Ensure sonar-scanner is in PATH
+                        export PATH=$PATH:$WORKSPACE/sonar-scanner/bin
+
+                        # Run the scanner, explicitly passing the token and potentially the host URL
+                        # The token is passed via the SONAR_TOKEN environment variable, which the scanner recognizes.
+                        # SONAR_TOKEN takes precedence over sonar.login property file.
+                        export SONAR_TOKEN="$SCANNER_TOKEN"
+                        sonar-scanner $SONAR_SCANNER_OPTS
+                        '''
+                    }
                 }
             }
         }
