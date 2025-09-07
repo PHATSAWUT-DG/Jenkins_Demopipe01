@@ -12,53 +12,96 @@ pipeline {
 
         stage('Setup venv & Install Dependencies') {
             steps {
-                // --- VERIFICATION STEP (Keep this for debugging) ---
+                // --- VERIFICATION STEP ON AGENT NODE ---
                 sh '''
-                echo "Verifying files in workspace after checkout:"
+                echo "Verifying files in workspace after checkout (on agent node):"
                 ls -la "$WORKSPACE"
                 if [ ! -f "$WORKSPACE/requirements.txt" ]; then
-                  echo "ERROR: requirements.txt not found in workspace!"
+                  echo "ERROR: requirements.txt not found in workspace on agent!"
                   exit 1
                 else
-                  echo "Found requirements.txt"
+                  echo "SUCCESS: Found requirements.txt on agent node."
                 fi
                 '''
-                // --- END OF VERIFICATION ---
+                // --- END OF AGENT VERIFICATION ---
 
-                // --- RUN PYTHON SETUP INSIDE CONTAINER AS JENKINS USER ---
+                // --- STEP 1: Simple Docker Volume Mount Test ---
                 sh '''
-                # Get the UID and GID of the current user (jenkins on the agent)
-                # Using 'id' command within the agent shell
+                echo "=== STEP 1: Testing Docker Volume Mount ==="
+                echo "Running simple 'ls -la' inside container to see mounted volume contents:"
+                docker run --rm \
+                  -v "$WORKSPACE:/workspace" \
+                  -w /workspace \
+                  alpine:latest \  # Use a minimal image for testing
+                  ls -la
+                echo "=== END STEP 1 ==="
+                '''
+                // --- END OF TEST ---
+
+                // --- STEP 2: Test with User ID (if previous step shows files) ---
+                sh '''
+                echo "=== STEP 2: Testing Docker Volume Mount with Jenkins User ID ==="
                 JENKINS_UID=$(id -u)
                 JENKINS_GID=$(id -g)
+                echo "Running 'ls -la' inside container as UID: $JENKINS_UID, GID: $JENKINS_GID :"
+                docker run --rm \
+                  --user "$JENKINS_UID:$JENKINS_GID" \
+                  -v "$WORKSPACE:/workspace" \
+                  -w /workspace \
+                  alpine:latest \
+                  ls -la
+                echo "=== END STEP 2 ==="
+                '''
+                // --- END OF TEST WITH USER ID ---
 
-                echo "Running Docker container as UID: $JENKINS_UID, GID: $JENKINS_GID"
+                // --- STEP 3: Run Python Setup (only if previous steps show files) ---
+                sh '''
+                echo "=== STEP 3: Running Python Setup ==="
+                JENKINS_UID=$(id -u)
+                JENKINS_GID=$(id -g)
+                echo "Running Python setup as UID: $JENKINS_UID, GID: $JENKINS_GID"
 
                 docker run --rm \
-                  --user "$JENKINS_UID:$JENKINS_GID" \  # Run as the jenkins user
+                  --user "$JENKINS_UID:$JENKINS_GID" \
                   -v "$WORKSPACE:/workspace" \
                   -w /workspace \
                   python:3.11 \
                   bash -c "
                     set -e
-                    echo 'Setting up virtual environment and installing dependencies...'
-                    # Verify files are accessible inside the container
-                    echo 'Contents of /workspace:'
+                    echo 'Contents of /workspace inside python container:'
                     ls -la
+                    echo '---'
+                    # Check if requirements.txt is actually there
                     if [ ! -f requirements.txt ]; then
-                      echo 'ERROR: requirements.txt not found inside the container!'
+                      echo 'CRITICAL ERROR: requirements.txt STILL not found inside python container!'
+                      echo 'Current directory is: \$(pwd)'
+                      echo 'WORKSPACE env var inside container: \$WORKSPACE' # Might be empty
+                      # List root and parent to see structure
+                      echo 'Contents of / :'
+                      ls -la /
+                      echo 'Contents of .. :'
+                      ls -la ..
                       exit 1
+                    else
+                      echo 'SUCCESS: requirements.txt found inside python container.'
                     fi
-                    # Ensure the venv directory is created by the correct user
-                    rm -rf venv # Clean up any potentially problematic previous venv
+
+                    echo 'Cleaning up any existing venv...'
+                    rm -rf venv || echo 'No existing venv to remove or permission issue removing it (will try creating anyway).'
+
+                    echo 'Creating virtual environment...'
                     python3 -m venv venv
+
+                    echo 'Activating virtual environment...'
                     source venv/bin/activate
-                    # pip install --upgrade pip # Optional: Skip upgrading pip if not strictly needed
+
+                    echo 'Installing dependencies from requirements.txt...'
                     pip install -r requirements.txt
-                    echo 'Setup complete.'
+
+                    echo 'Python setup complete.'
                   "
                 '''
-                // --- END OF DOCKER RUN ---
+                // --- END OF PYTHON SETUP ---
             }
         }
 
