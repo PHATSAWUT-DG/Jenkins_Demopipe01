@@ -67,6 +67,9 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
+                echo "Debug: Checking contents of workspace directory on HOST"
+                ls -la "$WORKSPACE"
+
                 echo "Running tests inside Docker container..."
 
                 docker run --rm \
@@ -75,6 +78,15 @@ pipeline {
                 python:3.11 \
                 bash -c "
                     set -e
+                    echo '=== DEBUG: Contents of /workspace inside container ==='
+                    ls -la /workspace
+                    echo '=== END DEBUG ==='
+
+                    if [ ! -f /workspace/requirements.txt ]; then
+                        echo 'ERROR: requirements.txt NOT FOUND inside container!'
+                        exit 1
+                    fi
+
                     echo 'Installing dependencies...'
                     pip install --no-cache-dir -r requirements.txt
                     echo 'Dependencies installed. Running tests...'
