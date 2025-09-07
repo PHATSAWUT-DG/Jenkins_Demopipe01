@@ -55,7 +55,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube Scanner') {
-                    sh 'sonar-scanner'
+                    sh '/var/jenkins_home/workspace/FastAPI-Pipeline/sonar-scanner/bin/sonar-scanner'
                 }
             }
         }
