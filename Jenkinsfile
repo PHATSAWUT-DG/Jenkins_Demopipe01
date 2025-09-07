@@ -14,6 +14,14 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
             }
         }
+            stage('Install SonarQube Scanner') {
+                steps {
+                    sh '''
+                    apt-get update && apt-get install -y npm
+                    npm install -g sonar-scanner
+                    '''
+                }
+            }
         stage('Setup venv') {
             steps {
                 sh '''
