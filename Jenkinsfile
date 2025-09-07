@@ -43,11 +43,12 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
+                echo "Waiting for file sync..."
+                sleep 5  # Give time for file sync
+                
                 echo "=== DEBUGGING MOUNT ISSUE ==="
                 echo "Host workspace contents:"
                 ls -la "$WORKSPACE"
-                
-                echo "Testing mount to /app_code instead of /workspace..."
                 
                 docker run --rm \
                 -v "$WORKSPACE:/app_code:rw" \
@@ -61,8 +62,7 @@ pipeline {
                     
                     if [ ! -f /app_code/requirements.txt ]; then
                         echo 'ERROR: requirements.txt NOT FOUND!'
-                        echo 'Searching for it...'
-                        find /app_code -name \"requirements.txt\" -type f || echo \"Not found anywhere\"
+                        find /app_code -name \\\"requirements.txt\\\" -type f || echo 'Not found anywhere'
                         exit 1
                     fi
                     
