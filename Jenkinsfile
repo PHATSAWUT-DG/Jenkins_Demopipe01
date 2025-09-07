@@ -12,14 +12,12 @@ pipeline {
 
         stage('Setup venv & Install Dependencies') {
             steps {
-                // --- NEW: Add verification step ---
+                // --- VERIFICATION STEP (Keep this for debugging) ---
                 sh '''
                 echo "Verifying files in workspace after checkout:"
                 ls -la "$WORKSPACE"
                 if [ ! -f "$WORKSPACE/requirements.txt" ]; then
                   echo "ERROR: requirements.txt not found in workspace!"
-                  echo "Current directory contents:"
-                  ls -la .
                   exit 1
                 else
                   echo "Found requirements.txt"
@@ -27,9 +25,17 @@ pipeline {
                 '''
                 // --- END OF VERIFICATION ---
 
-                // Run Python setup inside a python:3.11 container
+                // --- RUN PYTHON SETUP INSIDE CONTAINER AS JENKINS USER ---
                 sh '''
+                # Get the UID and GID of the current user (jenkins on the agent)
+                # Using 'id' command within the agent shell
+                JENKINS_UID=$(id -u)
+                JENKINS_GID=$(id -g)
+
+                echo "Running Docker container as UID: $JENKINS_UID, GID: $JENKINS_GID"
+
                 docker run --rm \
+                  --user "$JENKINS_UID:$JENKINS_GID" \  # Run as the jenkins user
                   -v "$WORKSPACE:/workspace" \
                   -w /workspace \
                   python:3.11 \
@@ -43,6 +49,8 @@ pipeline {
                       echo 'ERROR: requirements.txt not found inside the container!'
                       exit 1
                     fi
+                    # Ensure the venv directory is created by the correct user
+                    rm -rf venv # Clean up any potentially problematic previous venv
                     python3 -m venv venv
                     source venv/bin/activate
                     # pip install --upgrade pip # Optional: Skip upgrading pip if not strictly needed
@@ -50,14 +58,21 @@ pipeline {
                     echo 'Setup complete.'
                   "
                 '''
+                // --- END OF DOCKER RUN ---
             }
         }
 
         stage('Run Tests & Coverage') {
             steps {
                 // Run tests inside a python:3.11 container, reusing the installed dependencies
+                // Also run as the jenkins user for consistency
                 sh '''
+                JENKINS_UID=$(id -u)
+                JENKINS_GID=$(id -g)
+                echo "Running Docker container for tests as UID: $JENKINS_UID, GID: $JENKINS_GID"
+
                 docker run --rm \
+                  --user "$JENKINS_UID:$JENKINS_GID" \
                   -v "$WORKSPACE:/workspace" \
                   -w /workspace \
                   python:3.11 \
