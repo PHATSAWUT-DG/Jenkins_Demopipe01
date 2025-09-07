@@ -72,7 +72,6 @@ pipeline {
                 echo "Running Docker container for tests as UID: $JENKINS_UID, GID: $JENKINS_GID"
 
                 docker run --rm \
-                --user "$JENKINS_UID:$JENKINS_GID" \
                 -v "$WORKSPACE:/workspace" \
                 -w /workspace \
                 python:3.11 \
