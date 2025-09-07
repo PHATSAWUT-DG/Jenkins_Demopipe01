@@ -1,17 +1,17 @@
 pipeline {
     agent {
         docker {
-            image 'python:3.11'     // Docker image ที่ต้องการใช้
-            args '-v /var/run/docker.sock:/var/run/docker.sock'  // optional ถ้าต้องใช้ Docker CLI
+            image 'python:3.11'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
     environment {
-        SONARQUBE = credentials('sonarqube_token')
+        SONARQUBE = credentials('sqp_0bc64b5652ea024ceaa66a66fc5abfc5669417b8')
     }
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/wKritwara/Jenkins_Demopipe01.git'
+                git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
             }
         }
         stage('Setup venv') {
@@ -24,17 +24,17 @@ pipeline {
                 '''
             }
         }
-        
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                venv/bin/pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
+                . venv/bin/activate
+                pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                 '''
             }
         }
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonarqube') {
+                withSonarQubeEnv('SonarQube') {
                     sh 'sonar-scanner'
                 }
             }
@@ -46,7 +46,7 @@ pipeline {
         }
         stage('Deploy Container') {
             steps {
-                sh 'docker run -d -p 8000:8000 fastapi-app:latest'
+                sh 'docker run -d -p 8000:8000 --name fastapi_app fastapi-app:latest'
             }
         }
     }
