@@ -15,7 +15,6 @@ def reverse_string(text: str) -> str:
     return text[::-1]
 
 
-🔹 main.py
 # app/main.py
 
 from fastapi import FastAPI, HTTPException, Query
