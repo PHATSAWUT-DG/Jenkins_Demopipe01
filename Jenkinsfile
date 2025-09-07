@@ -12,9 +12,22 @@ pipeline {
 
         stage('Setup venv & Install Dependencies') {
             steps {
+                // --- NEW: Add verification step ---
+                sh '''
+                echo "Verifying files in workspace after checkout:"
+                ls -la "$WORKSPACE"
+                if [ ! -f "$WORKSPACE/requirements.txt" ]; then
+                  echo "ERROR: requirements.txt not found in workspace!"
+                  echo "Current directory contents:"
+                  ls -la .
+                  exit 1
+                else
+                  echo "Found requirements.txt"
+                fi
+                '''
+                // --- END OF VERIFICATION ---
+
                 // Run Python setup inside a python:3.11 container
-                // Mount the workspace directory to share files
-                // Set the working directory inside the container to /workspace
                 sh '''
                 docker run --rm \
                   -v "$WORKSPACE:/workspace" \
@@ -23,9 +36,16 @@ pipeline {
                   bash -c "
                     set -e
                     echo 'Setting up virtual environment and installing dependencies...'
+                    # Verify files are accessible inside the container
+                    echo 'Contents of /workspace:'
+                    ls -la
+                    if [ ! -f requirements.txt ]; then
+                      echo 'ERROR: requirements.txt not found inside the container!'
+                      exit 1
+                    fi
                     python3 -m venv venv
                     source venv/bin/activate
-                    pip install --upgrade pip
+                    # pip install --upgrade pip # Optional: Skip upgrading pip if not strictly needed
                     pip install -r requirements.txt
                     echo 'Setup complete.'
                   "
