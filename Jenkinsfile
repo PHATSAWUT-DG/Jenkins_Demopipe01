@@ -92,6 +92,26 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
+                // --- NEW: Install Docker CLI inside the python container ---
+                sh '''
+                echo "Installing Docker CLI..."
+                # Update package list
+                apt-get update
+                # Install prerequisites for https repositories
+                apt-get install -y ca-certificates curl gnupg lsb-release
+                # Add Docker's official GPG key
+                mkdir -p /etc/apt/keyrings
+                curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                # Set up the repository
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+                # Update package list again
+                apt-get update
+                # Install Docker CLI (docker-ce-cli)
+                apt-get install -y docker-ce-cli
+                echo "Docker CLI installation complete."
+                docker --version # Verify installation
+                '''
+                // --- END OF NEW INSTALLATION STEPS ---
                 sh 'docker build -t fastapi-app:latest .'
             }
         }
