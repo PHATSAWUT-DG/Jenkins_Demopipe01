@@ -37,6 +37,10 @@ pipeline {
         stage('Install SonarScanner') {
             steps {
                 sh '''
+                echo "Cleaning up previous files..."
+                rm -f sonar-scanner.zip
+                rm -rf sonar-scanner sonar-scanner-cli-7.2.0.5079-linux-x64        
+                        
                 echo "Downloading SonarScanner..."
                 curl -sSL -o sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.2.0.5079-linux-x64.zip?_gl=1*j7wxsl*_gcl_au*NDY1NzU2ODYzLjE3NTcyNzQ2MjA.*_ga*MjIyNzYzMTkuMTc1NzI3NDYxOQ..*_ga_9JZ0GZ5TC6*czE3NTcyNzQ2MTgkbzEkZzEkdDE3NTcyNzQ3MjkkajYwJGwwJGgw
                 unzip -q -o sonar-scanner.zip
