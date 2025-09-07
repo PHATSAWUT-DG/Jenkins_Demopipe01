@@ -67,9 +67,7 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                JENKINS_UID=$(id -u)
-                JENKINS_GID=$(id -g)
-                echo "Running Docker container for tests as UID: $JENKINS_UID, GID: $JENKINS_GID"
+                echo "Running tests inside Docker container..."
 
                 docker run --rm \
                 -v "$WORKSPACE:/workspace" \
@@ -77,16 +75,12 @@ pipeline {
                 python:3.11 \
                 bash -c "
                     set -e
-                    # Change ownership inside container so user 1000 can access files
-                    chown -R 1000:1000 /workspace
-                    # Now switch to user 1000 and install/run
-                    su -c '
-                        cd /workspace
-                        pip install --user --no-cache-dir -r requirements.txt
-                        export PYTHONPATH=.
-                        pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
-                    ' - 1000
-                    echo 'Tests completed.'
+                    echo 'Installing dependencies...'
+                    pip install --no-cache-dir -r requirements.txt
+                    echo 'Dependencies installed. Running tests...'
+                    export PYTHONPATH=.
+                    pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
+                    echo 'Tests completed successfully.'
                 "
                 '''
             }
