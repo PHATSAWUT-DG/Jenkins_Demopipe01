@@ -24,7 +24,9 @@ pipeline {
             steps {
                 sh '''
                 echo "Running tests inside Docker container..."
-                pip install --no-cache-dir -r requirements.txt --user
+                python -m venv venv
+                source venv/bin/activate
+                pip install --no-cache-dir -r requirements.txt
                 echo "Dependencies installed. Running tests..."
                 pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                 echo "Tests completed successfully."
