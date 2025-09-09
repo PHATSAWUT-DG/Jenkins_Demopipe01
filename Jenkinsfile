@@ -50,6 +50,7 @@ pipeline {
                 sh '''
                 echo "Running tests inside Docker container..."
                 pip install --no-cache-dir -r requirements.txt --target=/tmp/venv --break-system-packages
+                export PATH=/tmp/venv/bin:$PATH
                 export PYTHONPATH=/tmp/venv:$PYTHONPATH
                 echo "Dependencies installed. Running tests..."
                 pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
