@@ -48,8 +48,8 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                pip install --no-cache-dir -r requirements.txt
-                export PYTHONPATH=.
+                pip install --no-cache-dir -r requirements.txt --target=/workspace/venv --break-system-packages
+                export PYTHONPATH=/workspace/venv:$PYTHONPATH
                 pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                 '''
             }
