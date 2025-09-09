@@ -71,7 +71,7 @@ pipeline {
                 sh '''
                 docker stop fastapi_app || true
                 docker rm fastapi_app || true
-                docker run -d -p 8001:8001 --name fastapi_app fastapi-clean-demo:latest
+                docker run -d -p 8001:8000 --name fastapi_app fastapi-clean-demo:latest
                 '''
             }
         }
