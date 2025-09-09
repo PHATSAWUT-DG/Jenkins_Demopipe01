@@ -52,14 +52,14 @@ pipeline {
             agent {
                 docker {
                     image 'docker:19.03.13'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                    args "-v ${pwd()}:/workspace -v /var/run/docker.sock:/var/run/docker.sock"
                 }
             }
             steps {
-                sh 'docker build -t fastapi-app:latest .'
+                sh 'docker build -t fastapi-app:latest /workspace'
             }
         }
-
+        
         stage('Deploy Container') {
             agent {
                 docker {
