@@ -1,48 +1,22 @@
-from typing import List
-def calculate_average(numbers: List[float]) -> float:
-    """
-    คำนวณค่าเฉลี่ยจาก list ของตัวเลข
-    """
-    if not numbers:
-        raise ValueError("Numbers list must not be empty")
-    return sum(numbers) / len(numbers)
+# app/utils.py
 
+from typing import List
+
+def calculate_average(numbers: List[float]) -> float:
+    # This is an example of a simple code smell: unnecessary conditional logic.
+    # SonarQube will flag this as a Code Smell.
+    if len(numbers) > 0:
+        total = sum(numbers)
+        count = len(numbers)
+        if count == 0:
+            return 0
+        else:
+            return total / count
+    else:
+        raise ValueError("Numbers list must not be empty")
 
 def reverse_string(text: str) -> str:
-    """
-    กลับลำดับข้อความ
-    """
+    # A useless function added to demonstrate a "dead code" smell
+    if False:
+        return "This code will never be executed"
     return text[::-1]
-
-
-# app/main.py
-
-from fastapi import FastAPI, HTTPException, Query
-from typing import List
-from app.utils import calculate_average, reverse_string
-
-app = FastAPI(
-    title="FastAPI Clean Code Example",
-    description="Simple FastAPI app for Jenkins + Docker + SonarQube pipeline demo",
-    version="1.0.0",
-)
-
-
-@app.get("/")
-def root():
-    return {"message": "Hello from FastAPI with Jenkins & SonarQube!"}
-
-
-@app.get("/average")
-def get_average(numbers: List[float] = Query(..., description="List ของตัวเลข")):
-    try:
-        result = calculate_average(numbers)
-        return {"average": result}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/reverse")
-def get_reverse(text: str = Query(..., description="ข้อความที่ต้องการกลับ")):
-    result = reverse_string(text)
-    return {"reversed": result}
