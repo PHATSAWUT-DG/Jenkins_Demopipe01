@@ -49,8 +49,8 @@ pipeline {
             steps {
                 sh '''
                 echo "Running tests inside Docker container..."
-                pip install --no-cache-dir -r requirements.txt --user
-                export PYTHONPATH=/home/jenkins/.local/lib/python3.11/site-packages:$PYTHONPATH
+                pip install --no-cache-dir -r requirements.txt --target=/tmp/venv --break-system-packages
+                export PYTHONPATH=/tmp/venv:$PYTHONPATH
                 echo "Dependencies installed. Running tests..."
                 pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                 echo "Tests completed successfully."
