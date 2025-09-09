@@ -1,23 +1,32 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.11'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
     environment {
         SONARQUBE = credentials('sonarqube_token')
     }
     stages {
         stage('Checkout') {
             steps {
-                // เปลี่ยนเป็น branch ที่คุณต้องการ
-                git branch: 'feature', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
+                git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
+            }
+        }
+        stage('Setup venv') {
+            steps {
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                '''
             }
         }
         stage('Run Tests & Coverage') {
             steps {
-                sh '''
-                python3 -m venv venv
-                source venv/bin/activate
-                pip install -r requirements.txt
-                pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
-                '''
+                sh 'venv/bin/pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml'
             }
         }
         stage('SonarQube Analysis') {
@@ -29,18 +38,12 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                // แก้ไข image name เป็น lowercase
-                sh 'docker build -t fastapi-clean-demo:latest .'
+                sh 'docker build -t fastapi-app:latest .'
             }
         }
         stage('Deploy Container') {
             steps {
-                sh '''
-                docker stop fastapi_app || true
-                docker rm fastapi_app || true
-                // แก้ไข port เป็น 8001
-                docker run -d -p 8001:8000 --name fastapi_app fastapi-clean-demo:latest
-                '''
+                sh 'docker run -d -p 8000:8000 fastapi-app:latest'
             }
         }
     }
