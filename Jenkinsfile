@@ -56,7 +56,11 @@ pipeline {
                 }
             }
             steps {
-                sh 'docker build -t fastapi-app:latest .'
+                sh '''
+                docker stop fastapi_app || true
+                docker rm fastapi_app || true
+                docker run -d -p 8000:8000 --name fastapi_app fastapi-clean-demo:latest
+                '''
             }
         }
 
