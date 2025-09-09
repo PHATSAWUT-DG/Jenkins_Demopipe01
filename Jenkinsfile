@@ -10,7 +10,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
+                git branch: 'feature', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
                 sh 'echo "=== FILES AFTER CHECKOUT ==="; ls -la'
             }
         }
