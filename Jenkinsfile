@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.11'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     stages {
         stage('Clean Workspace') {
@@ -43,29 +48,9 @@ pipeline {
         stage('Run Tests & Coverage') {
             steps {
                 sh '''
-                echo "Running tests inside Docker container..."
-
-                docker run --rm \\
-                -v "$WORKSPACE:/workspace" \\
-                -w /workspace \\
-                python:3.11 \\
-                bash -c "
-                    set -e
-                    echo '=== CONTENTS IN CONTAINER ==='
-                    ls -la /workspace
-                    
-                    if [ ! -f /workspace/requirements.txt ]; then
-                        echo 'ERROR: requirements.txt NOT FOUND!'
-                        exit 1
-                    fi
-                    
-                    echo 'Installing dependencies...'
-                    pip install --no-cache-dir -r requirements.txt
-                    echo 'Dependencies installed. Running tests...'
-                    export PYTHONPATH=.
-                    pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
-                    echo 'Tests completed successfully.'
-                "
+                pip install --no-cache-dir -r requirements.txt
+                export PYTHONPATH=.
+                pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                 '''
             }
         }
