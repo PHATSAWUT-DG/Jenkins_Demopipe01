@@ -45,10 +45,10 @@ pipeline {
                 sh '''
                 echo "Running tests inside Docker container..."
 
-                docker run --rm \
-                -v "$WORKSPACE:/workspace" \
-                -w /workspace \
-                python:3.11 \
+                docker run --rm \\
+                -v "$WORKSPACE:/workspace" \\
+                -w /workspace \\
+                python:3.11 \\
                 bash -c "
                     set -e
                     echo '=== CONTENTS IN CONTAINER ==='
