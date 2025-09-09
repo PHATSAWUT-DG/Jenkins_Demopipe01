@@ -5,6 +5,16 @@ pipeline {
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
+    stages {
+        // ... (other stages)
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t fastapi-app:latest .
+                '''
+            }
+        }
+    }
 
     stages {
         stage('Clean Workspace') {
