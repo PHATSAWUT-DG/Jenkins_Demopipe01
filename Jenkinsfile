@@ -56,11 +56,7 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                docker stop fastapi_app || true
-                docker rm fastapi_app || true
-                docker run -d -p 8000:8000 --name fastapi_app fastapi-clean-demo:latest
-                '''
+                sh 'docker build -t fastapi-clean-demo:latest .'
             }
         }
 
@@ -68,14 +64,14 @@ pipeline {
             agent {
                 docker {
                     image 'docker:19.03.13'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                    args "-w /workspace -v ${pwd()}:/workspace -v /var/run/docker.sock:/var/run/docker.sock"
                 }
             }
             steps {
                 sh '''
                 docker stop fastapi_app || true
                 docker rm fastapi_app || true
-                docker run -d -p 8000:8000 --name fastapi_app fastapi-app:latest
+                docker run -d -p 8000:8000 --name fastapi_app fastapi-clean-demo:latest
                 '''
             }
         }
