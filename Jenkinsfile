@@ -95,7 +95,7 @@ pipeline {
             steps {
                 // This runs on the Jenkins agent node, using the locally installed scanner
                 // The scanner will analyze the code in the $WORKSPACE directory
-                withSonarQubeEnv('SonarQube Scanner') { // Make sure this name matches your Jenkins config
+                withSonarQubeEnv('SonarQube') { // Make sure this name matches your Jenkins config
                     withCredentials([string(credentialsId: 'sonarqube_token', variable: 'SCANNER_TOKEN')]) {
                         sh '''
                         # Debug: Confirm SCANNER_TOKEN is set from withCredentials
