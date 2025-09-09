@@ -56,10 +56,13 @@ pipeline {
                 }
             }
             steps {
-                sh 'docker build -t fastapi-app:latest /workspace'
+                sh '''
+                cd /workspace
+                docker build -t fastapi-app:latest .
+                '''
             }
         }
-        
+
         stage('Deploy Container') {
             agent {
                 docker {
