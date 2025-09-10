@@ -35,17 +35,20 @@ pipeline {
         }
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonarqube1') {
-                    sh '''
-                    # Install and configure SonarQube Scanner
-                    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
-                    unzip -o sonar-scanner-cli-4.7.0.2747-linux.zip
-                    export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
+                sh '''
+                # Install OpenJDK 17
+                apt-get update && apt-get install -y openjdk-17-jre
 
-                    # Run SonarQube Scanner
-                    sonar-scanner
-                    '''
+                # Download, unzip, and configure SonarQube Scanner
+                wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
+                unzip -o sonar-scanner-cli-4.7.0.2747-linux.zip
+                export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
+
+                # Run SonarQube Scanner with the new Java version
+                withSonarQubeEnv('Sonarqube') {
+                    sh 'sonar-scanner'
                 }
+                '''
             }
         }
         stage('Build Docker Image') {
