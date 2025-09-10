@@ -37,25 +37,25 @@ pipeline {
                 sh 'venv/bin/pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml'
             }
         }
-        stage('SonarQube Analysis') {
+        stage('Setup venv and Dependencies') {
             steps {
-                withSonarQubeEnv('SonarQube1') {
-                    sh '''
-                    # Download and unzip SonarQube Scanner
-                    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip  
-                    unzip -o sonar-scanner-cli-4.7.0.2747-linux.zip
-
-                    # Explicitly set JAVA_HOME and PATH to use Java 17
-                    export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
-                    export PATH="$JAVA_HOME/bin:$PATH"
-
-                    # Verify Java version
-                    java -version
-
-                    # Run SonarQube Scanner using the correct Java version
-                    sonar-scanner-4.7.0.2747-linux/bin/sonar-scanner -X
-                    '''
-                }
+                sh '''
+                # Download and install Java 17 without using apt
+                wget -O openjdk-17.tar.gz https://download.java.net/java/GA/jdk17.8/2d25502d5506458985d96318953f08ee/7/GPL/openjdk-17.8_linux-x64_bin.tar.gz
+                mkdir -p /tmp/java
+                tar -xzf openjdk-17.tar.gz -C /tmp/java
+                export JAVA_HOME=/tmp/java/jdk-17.8
+                export PATH=$JAVA_HOME/bin:$PATH
+                
+                # Verify Java
+                java -version
+                
+                # Set up Python virtual environment
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                '''
             }
         }
         stage('Build Docker Image') {
