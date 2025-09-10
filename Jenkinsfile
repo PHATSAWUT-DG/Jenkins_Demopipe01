@@ -17,8 +17,12 @@ pipeline {
         stage('Setup venv and Dependencies') {
             steps {
                 sh '''
-                # Install Java for SonarQube Scanner
-                apt-get update && apt-get install -y openjdk-17-jre
+                # Install Java 17 (JDK, not just JRE)
+                apt-get update && apt-get install -y openjdk-17-jdk
+
+                # Verify Java installation
+                java -version
+                which java
 
                 # Set up Python virtual environment
                 python3 -m venv venv
