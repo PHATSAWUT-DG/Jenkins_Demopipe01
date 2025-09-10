@@ -37,7 +37,7 @@ pipeline {
                 unzip sonar-scanner-cli-4.7.0.2747-linux.zip
                 export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
                 '''
-                withSonarQubeEnv('Sonarqube') {
+                withSonarQubeEnv('Sonarqube1') {
                     sh 'sonar-scanner'
                 }
             }
