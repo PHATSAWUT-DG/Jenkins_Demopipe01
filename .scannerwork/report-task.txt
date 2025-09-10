@@ -1,6 +1,6 @@
-projectKey=fastapi-clean-demo
+projectKey=fast-api
 serverUrl=http://localhost:9000
 serverVersion=25.9.0.112764
-dashboardUrl=http://localhost:9000/dashboard?id=fastapi-clean-demo
-ceTaskId=78409f97-dd42-41b0-803d-0453dd8507d6
-ceTaskUrl=http://localhost:9000/api/ce/task?id=78409f97-dd42-41b0-803d-0453dd8507d6
+dashboardUrl=http://localhost:9000/dashboard?id=fast-api
+ceTaskId=5842c7cb-0170-4221-b85f-f06f02bad3c7
+ceTaskUrl=http://localhost:9000/api/ce/task?id=5842c7cb-0170-4221-b85f-f06f02bad3c7
