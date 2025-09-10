@@ -35,7 +35,7 @@ pipeline {
         }
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonarqube2') {
+                withSonarQubeEnv('Sonarqube') {
                     sh '''
                     # Download, unzip, and configure SonarQube Scanner
                     wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
