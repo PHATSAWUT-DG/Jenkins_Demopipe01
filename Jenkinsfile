@@ -1,16 +1,20 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    // Use the Jenkins controller/master node (where Docker is installed) as the agent
+    agent any // Or specify a label if your controller has one, e.g., agent { label 'master' }
+
+    // Optionally specify tools if configured in Jenkins Global Tool Configuration
+    // tools {
+    //     jdk "Java17" // Name must match the JDK configured in Jenkins
+    //     // python "Python-3.11" // Less common, often rely on system python or venv
+    // }
+
     environment {
         // Ensure this matches the credential ID you create in Jenkins
         SONARQUBE = credentials('sonarqube_token1')
-        // Explicitly set JAVA_HOME for SonarQube Scanner CLI if needed
-        // JAVA_HOME = '/tmp/java/jdk-17.8' // Uncomment if using the wget method and needing to hint SonarQube
+        // If not using tools{} and Java is installed in the Jenkins image, you might need to set JAVA_HOME
+        // JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64' // Example path, check your Jenkins image
     }
+
     stages {
         stage('Checkout') {
             steps {
@@ -18,89 +22,50 @@ pipeline {
             }
         }
 
-        stage('Setup Environment (Java & Python)') {
+        stage('Setup Environment (Python)') {
             steps {
                 sh '''
-                echo "===== Checking for curl (alternative to wget) ====="
-                if ! command -v curl &> /dev/null; then
-                    echo "ERROR: Neither wget nor curl is available in the container. Cannot download Java."
-                    exit 1
-                else
-                    echo "curl is available."
-                fi
-
-                echo "===== Downloading and Installing Java 17 (JDK) Manually using curl ====="
-                # Use a verified download link from Eclipse Temurin (Adoptium)
-                # Example for Temurin 17.8+7 JDK for Linux x64:
-                JAVA_TAR_GZ="OpenJDK17U-jdk_x64_linux_hotspot_17.8_7.tar.gz"
-                JAVA_DOWNLOAD_URL="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.8%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.8_7.tar.gz"
-
-                # Check if file already exists to avoid re-download
-                if [ ! -f "$JAVA_TAR_GZ" ]; then
-                    echo "Downloading Java 17 from $JAVA_DOWNLOAD_URL..."
-                    # Use curl to download
-                    curl -L -o "$JAVA_TAR_GZ" "$JAVA_DOWNLOAD_URL"
-                    if [ $? -ne 0 ]; then
-                        echo "ERROR: Failed to download Java 17 using curl. Aborting."
-                        exit 1
-                    fi
-                else
-                    echo "Java archive already exists, skipping download."
-                fi
-
-                # Create directory and extract
-                mkdir -p /tmp/java
-                tar -xzf "$JAVA_TAR_GZ" -C /tmp/java
-                # Find the extracted JDK directory name dynamically
-                JDK_DIR_NAME=$(tar -tzf "$JAVA_TAR_GZ" | head -1 | cut -f1 -d"/")
-                if [ -z "$JDK_DIR_NAME" ]; then
-                    echo "ERROR: Could not determine JDK directory name after extraction."
-                    exit 1
-                fi
-                export JAVA_HOME=/tmp/java/$JDK_DIR_NAME
-                export PATH=$JAVA_HOME/bin:$PATH
-
-                echo "JAVA_HOME set to $JAVA_HOME"
-                echo "PATH updated to include $JAVA_HOME/bin"
-
-                # Verify Java installation
-                echo "Verifying Java installation:"
-                java -version
-                which java
-
                 echo "===== Setting up Python Virtual Environment ====="
+                # Use system python3 or the one available in the Jenkins image
                 python3 -m venv venv
-                # Activate venv and install dependencies in one sh block
                 . venv/bin/activate
                 pip install --upgrade pip
                 pip install -r requirements.txt
 
-                # Verify installations if needed
-                # . venv/bin/activate && python -c "import sys; print(sys.version)"
-                # . venv/bin/activate && pip list
+                # Verify installations
+                . venv/bin/activate && python -c "import sys; print(sys.version)"
+                . venv/bin/activate && pip list
                 '''
             }
         }
 
         stage('Run Tests & Coverage') {
             steps {
-                // Ensure the virtual environment is activated for this step
                 sh '''
+                echo "===== Running Tests ====="
                 . venv/bin/activate
                 pytest --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml
                 '''
             }
         }
 
-        // SonarQube Analysis Stage (from original lab sheet)
-        // Make sure SonarQube is running and credentials are configured in Jenkins
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonarqube') { // Ensure 'Sonarqube' matches the name in Jenkins config
+                withSonarQubeEnv('Sonarqube') { // Ensure 'Sonarqube' matches Jenkins config
                     sh '''
-                    # Ensure Java is available for Sonar Scanner
+                    echo "===== Running SonarQube Analysis ====="
+                    # Ensure Java is available
                     java -version
-                    # Run Sonar Scanner
+                    which java
+                    # Ensure Python venv is active if sonar-scanner needs specific packages
+                    . venv/bin/activate
+                    # Run Sonar Scanner CLI (ensure it's installed in the Jenkins image or install it here)
+                    # If sonar-scanner is not installed globally, you might need to download it or install via pip
+                    # Example installing sonar-scanner CLI (uncomment if needed):
+                    # curl -L --output sonar-scanner-cli.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
+                    # unzip sonar-scanner-cli.zip
+                    # export PATH=$PWD/sonar-scanner-4.8.0.2856-linux/bin:$PATH
+
                     sonar-scanner
                     '''
                 }
@@ -109,46 +74,53 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t fastapi-app:latest .'
+                 // Ensure Docker commands run on the *host* using the mounted socket
+                sh '''
+                echo "===== Building Docker Image ====="
+                docker build -t fastapi-app:latest .
+                '''
             }
         }
 
         stage('Deploy Container') {
             steps {
-                 // Optional: Stop and remove previous container if it exists
                 sh '''
+                echo "===== Deploying Container ====="
+                # Stop and remove previous container if it exists
                 docker stop fastapi-app-container || true
                 docker rm fastapi-app-container || true
+                # Run the new container
                 docker run -d --name fastapi-app-container -p 8000:8000 fastapi-app:latest
                 '''
             }
         }
 
-        stage('Push to Registry') {
+         stage('Push to Registry') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-cred', // Ensure this matches the credential ID in Jenkins
+                    credentialsId: 'dockerhub-cred', // Ensure this matches Jenkins credential ID
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
+                    echo "===== Pushing to Docker Registry ====="
                     echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                     # Tag the image correctly for Docker Hub
                     docker tag fastapi-app:latest $DOCKER_USER/fastapi-app:latest
                     docker push $DOCKER_USER/fastapi-app:latest
-                    # Optional: Push with a build number or git commit tag
-                    # GIT_COMMIT_SHORT=$(git rev-parse --short HEAD)
-                    # docker tag fastapi-app:latest $DOCKER_USER/fastapi-app:$GIT_COMMIT_SHORT
-                    # docker push $DOCKER_USER/fastapi-app:$GIT_COMMIT_SHORT
+                    # Optional: Logout
+                    # docker logout
                     '''
                 }
             }
         }
+
     }
+
     post {
         always {
             echo "Pipeline execution finished."
-            // Optional: Clean up the local Docker image after pushing?
+             // Optional cleanup
             // sh 'docker rmi fastapi-app:latest $DOCKER_USER/fastapi-app:latest || true'
         }
     }
