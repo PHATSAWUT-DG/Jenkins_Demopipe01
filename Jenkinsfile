@@ -35,7 +35,7 @@ pipeline {
                     sh '''
                     # Install and configure SonarQube Scanner
                     wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
-                    unzip sonar-scanner-cli-4.7.0.2747-linux.zip
+                    unzip -o sonar-scanner-cli-4.7.0.2747-linux.zip
                     export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
 
                     # Run SonarQube Scanner
