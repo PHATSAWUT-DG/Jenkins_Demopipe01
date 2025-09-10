@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'sonarsource/sonar-scanner-cli'
+            image 'python:3.11'
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -14,9 +14,13 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/PHATSAWUT-DG/Jenkins_Demopipe01.git'
             }
         }
-        stage('Setup venv') {
+        stage('Setup venv and Dependencies') {
             steps {
                 sh '''
+                # Install Java for SonarQube Scanner
+                apt-get update && apt-get install -y openjdk-17-jre
+
+                # Set up Python virtual environment
                 python3 -m venv venv
                 . venv/bin/activate
                 pip install --upgrade pip
