@@ -37,16 +37,19 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube1') {
                     sh '''
-                    # Download, unzip, and configure SonarQube Scanner
-                    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
+                    # Download and unzip SonarQube Scanner
+                    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip  
                     unzip -o sonar-scanner-cli-4.7.0.2747-linux.zip
 
-                    # Fix: Set JAVA_HOME and prepend Java 17 to the PATH to ensure it is found first
+                    # Explicitly set JAVA_HOME and PATH to use Java 17
                     export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
-                    export PATH="$JAVA_HOME/bin:$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
+                    export PATH="$JAVA_HOME/bin:$PATH"
 
-                    # Run SonarQube Scanner with the correct Java version
-                    sonar-scanner -X
+                    # Verify Java version
+                    java -version
+
+                    # Run SonarQube Scanner using the correct Java version
+                    sonar-scanner-4.7.0.2747-linux/bin/sonar-scanner -X
                     '''
                 }
             }
