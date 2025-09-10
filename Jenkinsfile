@@ -42,6 +42,9 @@ pipeline {
                     unzip -o sonar-scanner-cli-4.7.0.2747-linux.zip
                     export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
 
+                    # Fix: Set JAVA_HOME to the newly installed Java 17 to avoid version conflicts
+                    export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
+
                     # Run SonarQube Scanner with the new Java version
                     sonar-scanner -X
                     '''
