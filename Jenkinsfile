@@ -18,45 +18,30 @@ pipeline {
             }
         }
 
-        // Combine Setup stages into one, removing the duplicate
         stage('Setup Environment (Java & Python)') {
             steps {
                 sh '''
-                echo "===== Installing wget (needed for downloading Java) ====="
-                # Update package list and install wget as root using 'apt update' might be restricted
-                # Try using the package manager's underlying tool 'dpkg' if needed, but apt is simpler.
-                # We'll try apt first, if it fails due to permissions, we might need a different base image or approach.
-                # However, often basic packages like wget can be installed or are present.
-                # Let's check if wget is already available:
-                if ! command -v wget &> /dev/null; then
-                    echo "wget not found, attempting to install..."
-                    # This might fail if not root. If it fails, the manual download will likely also need root or fail.
-                    # For python:3.11, apt *should* work inside the container steps, but with the user context.
-                    # Let's try installing wget first. If this fails, we might need to adjust.
-                    apt-get update && apt-get install -y wget
-                    if [ $? -ne 0 ]; then
-                      echo "Failed to install wget using apt-get. Trying with --allow-releaseinfo-change if it's an update issue."
-                      apt-get update --allow-releaseinfo-change && apt-get install -y wget
-                    fi
-                    if [ $? -ne 0 ]; then
-                       echo "WARNING: Could not install wget. Manual Java download might fail."
-                    fi
+                echo "===== Checking for curl (alternative to wget) ====="
+                if ! command -v curl &> /dev/null; then
+                    echo "ERROR: Neither wget nor curl is available in the container. Cannot download Java."
+                    exit 1
                 else
-                    echo "wget is already installed."
+                    echo "curl is available."
                 fi
 
-                echo "===== Downloading and Installing Java 17 (JDK) Manually ====="
-                # Use a reliable download link. The one from the lab sheet or Adoptium/Eclipse Temurin is good.
-                # Example using Eclipse Temurin 17 JDK:
-                JAVA_TAR_GZ="openjdk-17.8_linux-x64_bin.tar.gz"
-                JAVA_DOWNLOAD_URL="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.8%2B7/$JAVA_TAR_GZ"
+                echo "===== Downloading and Installing Java 17 (JDK) Manually using curl ====="
+                # Use a verified download link from Eclipse Temurin (Adoptium)
+                # Example for Temurin 17.8+7 JDK for Linux x64:
+                JAVA_TAR_GZ="OpenJDK17U-jdk_x64_linux_hotspot_17.8_7.tar.gz"
+                JAVA_DOWNLOAD_URL="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.8%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.8_7.tar.gz"
 
                 # Check if file already exists to avoid re-download
                 if [ ! -f "$JAVA_TAR_GZ" ]; then
                     echo "Downloading Java 17 from $JAVA_DOWNLOAD_URL..."
-                    wget -O "$JAVA_TAR_GZ" "$JAVA_DOWNLOAD_URL"
+                    # Use curl to download
+                    curl -L -o "$JAVA_TAR_GZ" "$JAVA_DOWNLOAD_URL"
                     if [ $? -ne 0 ]; then
-                        echo "ERROR: Failed to download Java 17. Aborting."
+                        echo "ERROR: Failed to download Java 17 using curl. Aborting."
                         exit 1
                     fi
                 else
@@ -66,17 +51,20 @@ pipeline {
                 # Create directory and extract
                 mkdir -p /tmp/java
                 tar -xzf "$JAVA_TAR_GZ" -C /tmp/java
-                # Find the extracted JDK directory (name might vary slightly)
-                # This assumes the tar.gz contains a single directory like 'jdk-17.8+7'
-                # Adjust the path if the structure inside the tar.gz is different.
+                # Find the extracted JDK directory name dynamically
                 JDK_DIR_NAME=$(tar -tzf "$JAVA_TAR_GZ" | head -1 | cut -f1 -d"/")
+                if [ -z "$JDK_DIR_NAME" ]; then
+                    echo "ERROR: Could not determine JDK directory name after extraction."
+                    exit 1
+                fi
                 export JAVA_HOME=/tmp/java/$JDK_DIR_NAME
                 export PATH=$JAVA_HOME/bin:$PATH
 
                 echo "JAVA_HOME set to $JAVA_HOME"
-                echo "Adding JAVA_HOME to environment for subsequent steps might require setting it in a later stage or using environment block if persistent across steps in this agent, but exporting here makes it available for commands in this sh block."
+                echo "PATH updated to include $JAVA_HOME/bin"
 
                 # Verify Java installation
+                echo "Verifying Java installation:"
                 java -version
                 which java
 
