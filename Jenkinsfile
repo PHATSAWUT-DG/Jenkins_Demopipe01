@@ -43,7 +43,7 @@ pipeline {
                     export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
 
                     # Run SonarQube Scanner with the new Java version
-                    sonar-scanner
+                    sonar-scanner -X
                     '''
                 }
             }
