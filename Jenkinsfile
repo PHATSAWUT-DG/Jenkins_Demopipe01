@@ -31,14 +31,16 @@ pipeline {
         }
         stage('SonarQube Analysis') {
             steps {
-                sh '''
-                # Install SonarQube Scanner
-                wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
-                unzip sonar-scanner-cli-4.7.0.2747-linux.zip
-                export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
-                '''
                 withSonarQubeEnv('Sonarqube1') {
-                    sh 'sonar-scanner'
+                    sh '''
+                    # Install and configure SonarQube Scanner
+                    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
+                    unzip sonar-scanner-cli-4.7.0.2747-linux.zip
+                    export PATH="$PATH:`pwd`/sonar-scanner-4.7.0.2747-linux/bin"
+
+                    # Run SonarQube Scanner
+                    sonar-scanner
+                    '''
                 }
             }
         }
